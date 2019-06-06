@@ -1,0 +1,387 @@
+homeassistant:
+  # Name of the location where Home Assistant is running
+  name: Home
+  # Location required to calculate the time the sun rises and sets
+  latitude: !secret lat
+  longitude: !secret lon
+  # Impacts weather/sunrise data (altitude above sea level in meters)
+  elevation: 417
+  # metric for Metric, imperial for Imperial
+  unit_system: imperial
+  # Pick yours from here: http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  time_zone: America/Chicago
+
+  customize: !include customize.yaml
+
+# Show links to resources in log and frontend
+#introduction:
+
+# Enables the frontend
+frontend:
+
+# Enables configuration UI
+config:
+
+http:
+  base_url: !secret baseurl
+  trusted_networks:
+    - 127.0.0.1
+    - ::1
+  ip_ban_enabled: True
+  login_attempts_threshold: 10
+  #use_x_forwarded_for: True
+  #trusted_proxies: raisingmodern.com
+
+# Checks for available updates
+updater:
+
+# Discover some devices automatically
+discovery:
+
+# Allows you to issue voice commands from the frontend in enabled browsers
+conversation:
+
+# Enables support for tracking state changes over time.
+history:
+
+recorder:
+  purge_keep_days: 800
+
+# View all events in a logbook
+logbook:
+
+# Track the sun
+sun:
+
+netgear_lte:
+  - host: 192.168.5.1
+    password: !secret netgear_lte
+
+# Weather Prediction
+sensor:
+  - platform: yweather
+    name: Weather
+    woeid: !secret woeid
+    monitored_conditions:
+    - weather
+    - weather_current
+    - temp_min
+    - temp_max
+    - wind_speed
+    - pressure
+    - visibility
+    - humidity
+    - temperature
+  - platform: nest
+    monitored_conditions: precip_1d
+      - 'weather_temperature'
+      - 'weather_humidity'
+      - 'weather_condition'
+  - platform: wunderground
+    api_key: !secret wunderground_api_key
+    monitored_conditions:
+    - alerts
+    - feelslike_f
+    - feelslike_string
+    - precip_1d
+    - precip_today_string
+    - precip_1d_in
+    - relative_humidity
+    - solarradiation
+    - temp_f
+    - weather_1h
+    - wind_mph
+    - wind_1d_mph
+  - platform: netgear_lte
+    sensors:
+      - usage
+
+# Text to speech
+tts:
+  platform: google
+
+group: !include groups.yaml
+
+media_player:
+  - platform: mpd
+    name: Music
+    host: 172.16.0.101
+  - platform: webostv
+    mac: A0:6F:A:49:8D:86
+    name: Bedroom Projector
+  - platform: universal
+    name: Master Bedroom Zone
+    children:
+      - media_player.bedroom
+    commands:
+      turn_on:
+        service: switch.turn_on
+        data:
+          entity_id: switch.master_bedroom_audio
+      turn_off:
+        service: switch.turn_off
+        data:
+          entity_id: switch.master_bedroom_audio
+      # volume_set:
+      #   service
+      select_source:
+        service: mqtt.publish
+        data: 
+          topic: devices/audio-zone/C/input/set
+          payload_template: '{{ source }}'
+    attributes:
+      state: switch.master_bedroom_audio
+      volume_level: input_number.zone_c_volume
+      source_list: input_select.audio_sources|options
+
+
+mqtt:
+  broker: 172.16.0.101
+ 
+nest:
+  client_id: !secret nest_client_id
+  client_secret: !secret nest_client_secret
+
+#insteon_plm:
+#  port: /dev/ttyUSB0
+
+cover:
+  - platform: insteon
+  - platform: myq
+    username: !secret myq_username
+    password: !secret myq_password
+    type: liftmaster
+
+insteon:
+  host: 172.16.0.87 
+  username: Maiden48
+  password: !secret insteon_local_password
+  timeout: 600
+  hub_version: 2
+
+light:
+  - platform: insteon
+  - platform: flux_led
+    devices:
+      172.16.0.71:
+        name: "Living Room RGB"
+        mode: "rgb"
+      # 172.16.0.52:
+      #   name: "Over Garage"
+      #   mode: "rgb"
+      172.16.0.52:
+        name: "Hallway"
+        mode: "rgbw"
+      172.16.0.92:
+        name: "Master Bath RGB"
+        mode: "rgb"
+  
+switch:
+  - platform: mqtt
+    name: Saul's Room Audio
+    command_topic: devices/audio-zone/B/power-state/set
+    state_topic: devices/audio-zone/B/power-state/get
+    payload_on: 'on'
+    payload_off: 'off'
+    icon: mdi:mdi-speaker
+  - platform: mqtt
+    name: Master Bedroom Audio
+    command_topic: devices/audio-zone/C/power-state/set
+    state_topic: devices/audio-zone/C/power-state/get
+    payload_on: 'on'
+    payload_off: 'off'
+    icon: mdi:mdi-speaker
+  - platform: mfi
+    host: mfi.local #172.16.0.46
+    port: 443
+    verify_ssl: false
+    username: ubnt
+    password: ubnt
+
+input_select:
+  audio_sources:
+    name: Audio Sources
+    options:
+      - "00"
+      - "01"
+      - "02"
+      - "03"
+      - "04"
+      - "05"
+      - "06"
+
+  
+#fan:
+#  - platform: insteon_local
+
+camera:
+#  - platform: onvif
+#    host: 172.16.0.200
+#    username: admin
+#    password: !secret camera1_password
+  - platform: mjpeg
+    mjpeg_url: http://172.16.0.200/Streaming/channels/2/httppreview
+    username: admin
+    password: !secret camera1_password
+    name: Camera 1
+
+binary_sensor:
+  platform: hikvision
+  host: 172.16.0.200
+  username: admin
+  password: !secret camera1_password
+
+device_tracker:
+  - platform: unifi
+    host: fishlegs
+    username: !secret unifi_controller_userid
+    password: !secret unifi_controller_password
+    verify_ssl: false
+
+notify:
+  - platform: netgear_lte
+    name: sms
+    target: !secret andrew_mobile
+
+google_assistant:
+  project_id: homeassistant
+  api_key: !secret google_api_key
+  exposed_domains:
+    - switch
+    - light
+    - group
+    - input_boolean
+    - fan
+    - media_player
+    - climate
+    - vacuum
+  #entity_config:
+    # switch.kitchen:
+    #   name: CUSTOM_NAME_FOR_GOOGLE_ASSISTANT
+    #   aliases:
+    #     - BRIGHT_LIGHTS
+    #     - ENTRY_LIGHTS
+    # light.living_room:
+    #   expose: false
+    #   room: LIVING_ROOM
+
+#Audio stuff
+input_number:
+  zone_c_volume:
+    name: Master Bedroom Audio Volume
+    initial: -60
+    min: -80
+    max: 0
+    step: 2
+
+automation: !include automations.yaml
+automation old:
+  - alias: Master Audio - Adjust Volume
+    trigger:
+      platform: state
+      entity_id: input_number.zone_c_volume
+    action:
+      - service: mqtt.publish
+        data_template:
+          topic: devices/audio-zone/C/volume/set
+          payload_template: '{{states.input_number.zone_c_volume.state | int}}'
+
+  - alias: Master Audio - Update Volume
+    trigger:
+      platform: mqtt
+      topic: devices/audio-zone/C/volume/get
+    action:
+      - service: input_number.set_value
+        data_template:
+          entity_id: input_number.zone_c_volume
+          value: '{{ trigger.payload }}'
+
+  - alias: Gate Light on at night
+    trigger:
+      - platform: sun
+        event: sunset
+        offset: '+00:30:00'
+    action:
+      - service: light.turn_on
+        entity_id: light.2B9E97
+        data:
+          brightness_pct: 50
+      - service: notify.notify
+        data:
+          message: "Gate light turned on for the night."
+
+  - alias: Gate Light off during day
+    trigger:
+      - platform: sun
+        event: sunrise
+        offset: '-00:30:00'
+    action:
+      - service: light.turn_off
+        entity_id: light.2B9E97
+#Need to use weather underground (need api key) for precip
+#  - alias: Blue light when rain in forecast
+#    trigger:
+#      - platform: 
+#    action:
+#      - service: light.turn_on
+#        entity_id: light.2B9E97
+#        data:
+#          rgb_color: 12, 12, 255
+  - alias: Orange light for warmer weather
+    trigger:
+      platform: time
+      at: '06:55:00'
+    condition:
+      condition: numeric_state
+      entity_id: sensor.weather_temperature_max
+      above: 60
+    action:
+    - service: light.turn_on
+      entity_id: light.living_room_rgb
+      data:
+        rgb_color: 255, 12, 12
+  - alias: Purple light for cooler weather
+    trigger:
+      platform: time
+      at: '06:55:05'
+    condition:
+      condition: numeric_state
+      entity_id: sensor.weather_temperature_max
+      below: 61
+    action:
+    - service: light.turn_on
+      entity_id: light.living_room_rgb
+      data:
+        rgb_color: 22, 12, 255
+  - alias: Living Room TV time
+    trigger:
+      platform: state
+      entity_id: media_player.viera_gt50
+      from: 'off'
+      to: 'on'
+      for:
+        seconds: 10
+    action:
+    - service: light.turn_on
+      entity_id: light.living_room_rgb
+      data:
+        rgb_color: 12, 0, 28
+      #Dim living room light to off
+      #close curtains
+
+#Randomly select music playlist by time of day.
+#Turn audio zones on & off by time of day.
+#Turn off devices based on presence (lights, audio)
+#Manage laundry room light based on motion.
+#Turn garage light on when door opens.
+#Manage hot water circulation pump.
+#Manage lights by calendar.
+#Turn off bathroom fans after 30 minutes.
+#Run upstairs fan if delta between bathroom thermostat & upstairs thermostat is > x
+#Open/close curtains based on sun & temperature.
+#Notify on camera motion
+
+
+      
+
+  

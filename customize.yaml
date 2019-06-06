@@ -1,0 +1,4 @@
+fan.27f9fd:
+  friendly_name: Master Bedroom Fan
+binary_sensor.downstairs_thermostat_is_using_emergency_heat:
+  hidden: true
