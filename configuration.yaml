@@ -57,41 +57,15 @@ netgear_lte:
   - host: 192.168.5.1
     password: !secret netgear_lte
 
-# Weather Prediction
+weather: 
+  - platform: darksky
+    api_key: !secret darksky_api_key
 sensor:
-  - platform: yweather
-    name: Weather
-    woeid: !secret woeid
-    monitored_conditions:
-    - weather
-    - weather_current
-    - temp_min
-    - temp_max
-    - wind_speed
-    - pressure
-    - visibility
-    - humidity
-    - temperature
   - platform: nest
     monitored_conditions: precip_1d
       - 'weather_temperature'
       - 'weather_humidity'
       - 'weather_condition'
-  - platform: wunderground
-    api_key: !secret wunderground_api_key
-    monitored_conditions:
-    - alerts
-    - feelslike_f
-    - feelslike_string
-    - precip_1d
-    - precip_today_string
-    - precip_1d_in
-    - relative_humidity
-    - solarradiation
-    - temp_f
-    - weather_1h
-    - wind_mph
-    - wind_1d_mph
   - platform: netgear_lte
     sensors:
       - usage
@@ -107,12 +81,15 @@ media_player:
     name: Music
     host: 172.16.0.101
   - platform: webostv
-    mac: A0:6F:A:49:8D:86
+    host: 172.16.0.81
     name: Bedroom Projector
   - platform: universal
     name: Master Bedroom Zone
     children:
-      - media_player.bedroom
+      - media_player.whole_house_speaker
+      - media_player.mpd
+    # state_template: >
+    #   {% states.switch.master_bedroom_audio.state %}
     commands:
       turn_on:
         service: switch.turn_on
@@ -130,7 +107,7 @@ media_player:
           topic: devices/audio-zone/C/input/set
           payload_template: '{{ source }}'
     attributes:
-      state: switch.master_bedroom_audio
+      state: switc  h.master_bedroom_audio|state
       volume_level: input_number.zone_c_volume
       source_list: input_select.audio_sources|options
 
@@ -239,9 +216,13 @@ device_tracker:
     verify_ssl: false
 
 notify:
-  - platform: netgear_lte
-    name: sms
-    target: !secret andrew_mobile
+  - platform: simplepush
+    name: simplepush_andrew
+    device_key: !seret simplepush_andrew
+
+  # - platform: netgear_lte
+  #   name: sms
+  #   target: !secret andrew_mobile
 
 google_assistant:
   project_id: homeassistant
@@ -276,48 +257,58 @@ input_number:
 
 automation: !include automations.yaml
 automation old:
-  - alias: Master Audio - Adjust Volume
-    trigger:
-      platform: state
-      entity_id: input_number.zone_c_volume
-    action:
-      - service: mqtt.publish
-        data_template:
-          topic: devices/audio-zone/C/volume/set
-          payload_template: '{{states.input_number.zone_c_volume.state | int}}'
+  # - alias: Master Audio - Adjust Volume
+  #   trigger:
+  #     platform: state
+  #     entity_id: input_number.zone_c_volume
+  #   action:
+  #     - service: mqtt.publish
+  #       data_template:
+  #         topic: devices/audio-zone/C/volume/set
+  #         payload_template: '{{states.input_number.zone_c_volume.state | int}}'
 
-  - alias: Master Audio - Update Volume
-    trigger:
-      platform: mqtt
-      topic: devices/audio-zone/C/volume/get
-    action:
-      - service: input_number.set_value
-        data_template:
-          entity_id: input_number.zone_c_volume
-          value: '{{ trigger.payload }}'
+  # - alias: Master Audio - Update Volume
+  #   trigger:
+  #     platform: mqtt
+  #     topic: devices/audio-zone/C/volume/get
+  #   action:
+  #     - service: input_number.set_value
+  #       data_template:
+  #         entity_id: input_number.zone_c_volume
+  #         value: '{{ trigger.payload }}'
 
-  - alias: Gate Light on at night
+  - alias: Night lights on at night
     trigger:
       - platform: sun
         event: sunset
-        offset: '+00:30:00'
+        offset: '+00:10:00'
     action:
       - service: light.turn_on
-        entity_id: light.2B9E97
+        entity_id: light.2b9e97_2
         data:
           brightness_pct: 50
-      - service: notify.notify
+      - service: light.turn_on
+        entity_id: light.2bc8a3_2
         data:
-          message: "Gate light turned on for the night."
+          brightness_pct: 50
+      - service: notify.simplepush_andrew
+        data:
+          message: "Night lights on."
 
-  - alias: Gate Light off during day
+  - alias: Night lights off during day
     trigger:
       - platform: sun
         event: sunrise
-        offset: '-00:30:00'
+        offset: '-00:10:00'
     action:
       - service: light.turn_off
-        entity_id: light.2B9E97
+        entity_id: light.2b9e97_2
+      - service: light.turn_off
+        entity_id: light.2bc8a3_2
+      - service: notify.simplepush_andrew
+        data:
+          message: "Night lights off."
+
 #Need to use weather underground (need api key) for precip
 #  - alias: Blue light when rain in forecast
 #    trigger:
@@ -333,11 +324,11 @@ automation old:
       at: '06:55:00'
     condition:
       condition: numeric_state
-      entity_id: sensor.weather_temperature_max
+      entity_id: weather.dark_sky sensor.weather_temperature_max
       above: 60
     action:
     - service: light.turn_on
-      entity_id: light.living_room_rgb
+      entity_id: light.master_bath_rgb
       data:
         rgb_color: 255, 12, 12
   - alias: Purple light for cooler weather
@@ -350,25 +341,10 @@ automation old:
       below: 61
     action:
     - service: light.turn_on
-      entity_id: light.living_room_rgb
+      entity_id: light.master_bath_rgb
       data:
         rgb_color: 22, 12, 255
-  - alias: Living Room TV time
-    trigger:
-      platform: state
-      entity_id: media_player.viera_gt50
-      from: 'off'
-      to: 'on'
-      for:
-        seconds: 10
-    action:
-    - service: light.turn_on
-      entity_id: light.living_room_rgb
-      data:
-        rgb_color: 12, 0, 28
-      #Dim living room light to off
-      #close curtains
-
+  
 #Randomly select music playlist by time of day.
 #Turn audio zones on & off by time of day.
 #Turn off devices based on presence (lights, audio)

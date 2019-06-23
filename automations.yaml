@@ -1,0 +1,22 @@
+- id: '1561242023243'
+  alias: Living Room TV Time 2
+  trigger:
+  - entity_id: media_player.viera_gt50
+    for: '20'
+    from: 'off'
+    platform: state
+    to: 'on'
+  condition:
+  - after: sunrise
+    before: sunset
+    condition: sun
+  action:
+  - alias: ''
+    data:
+      entity_id: cover.2c93d9
+    service: cover.close_cover
+  - data:
+      brightness: '50'
+      color_name: yellow
+      entity_id: light.living_room_rgb
+    service: light.turn_on

@@ -1,0 +1,5 @@
+downstairs:
+  - binary_sensor.downstairs_thermostat_fan
+Master Bedroom:
+  - input_slider.zone_c_volume
+  - switch.master_bedroom_audio
