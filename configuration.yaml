@@ -80,9 +80,16 @@ media_player:
   - platform: mpd
     name: Music
     host: 172.16.0.101
-  - platform: webostv
-    host: 172.16.0.81
+  - platform: lg_netcast
+    host: 172.16.0.70
+    access_token: 987981
     name: Bedroom Projector
+  - platform: panasonic_viera
+    host: 172.16.0.20
+    name: Living Room TV
+  - platform: androidtv
+    name: Bedroom SHIELD
+    host: 172.16.0.83
   - platform: universal
     name: Master Bedroom Zone
     children:
@@ -215,14 +222,53 @@ device_tracker:
     password: !secret unifi_controller_password
     verify_ssl: false
 
+telegram_bot:
+  - platform: polling
+    api_key: !secret telegram_api_key
+    allowed_chat_ids:
+      - !secret telegram_andrew_chat_id
+
 notify:
-  - platform: simplepush
-    name: simplepush_andrew
-    device_key: !seret simplepush_andrew
+  - name: telegram
+    platform: telegram
+    chat_id: !secret telegram_andrew_chat_id
 
   # - platform: netgear_lte
   #   name: sms
   #   target: !secret andrew_mobile
+
+influxdb:
+  host: fishlegs.local
+  # include:
+  #   entities:
+  #      - sensor.upstairs_thermostat_target
+  #      - sensor.upstairs_thermostat_temperature
+  #      - sensor.master_bedroom_thermostat_temperature
+  #      - sensor.master_bedroom_thermostat_target
+  #      - sensor.downstairs_thermostat_target
+  #      - sensor.downstairs_thermostat_temperature
+
+system_health:
+
+sensor:
+  - platform: systemmonitor
+    resources:
+      - type: disk_use_percent
+        arg: /home
+      - type: disk_free
+        arg: /home
+      - type: memory_use_percent
+      - type: load_1m
+      - type: load_5m
+      - type: load_15m
+
+speedtestdotnet:
+  scan_interval:
+    hours: 6
+  monitored_conditions:
+    - ping
+    - download
+    - upload
 
 google_assistant:
   project_id: homeassistant
@@ -291,7 +337,7 @@ automation old:
         entity_id: light.2bc8a3_2
         data:
           brightness_pct: 50
-      - service: notify.simplepush_andrew
+      - service: notify.telegram
         data:
           message: "Night lights on."
 
@@ -305,7 +351,7 @@ automation old:
         entity_id: light.2b9e97_2
       - service: light.turn_off
         entity_id: light.2bc8a3_2
-      - service: notify.simplepush_andrew
+      - service: notify.telegram
         data:
           message: "Night lights off."
 
